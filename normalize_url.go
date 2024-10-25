@@ -13,6 +13,7 @@ import (
 )
 
 type config struct {
+	maxPages           int
 	pages              map[string]int
 	baseURL            *url.URL
 	mu                 *sync.Mutex
@@ -93,8 +94,11 @@ func (cfg *config) crawlPage(rawCurrentURL string) {
 	defer cfg.wg.Done()
 	defer func() { <-cfg.concurrencyControl }()
 	cfg.concurrencyControl <- struct{}{}
-
-	log.Printf("Crawling: %v\n", rawCurrentURL)
+	if cfg.maxPages < len(cfg.pages) {
+		log.Printf("Max pages reached: %v\n", cfg.maxPages)
+		return
+	}
+	fmt.Printf("Crawling: %v\n", rawCurrentURL)
 	rawCurrentURLNormalized, err := normalizeURL(rawCurrentURL)
 	if err != nil {
 		fmt.Printf("Error normalizing URL from %s, err: %v\n", rawCurrentURL, err)
@@ -174,8 +178,9 @@ func (cfg *config) addPageVisit(normalizedURL string) (isFirst bool) {
 	return true
 }
 
-func NewConfig(maxConcurrency int, baseURL *url.URL) *config {
+func NewConfig(maxConcurrency, maxPages int, baseURL *url.URL) *config {
 	return &config{
+		maxPages:           maxPages,
 		pages:              map[string]int{},
 		baseURL:            baseURL,
 		mu:                 &sync.Mutex{},
